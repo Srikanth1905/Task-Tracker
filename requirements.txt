@@ -1,0 +1,4 @@
+streamlit
+pandas
+bcrypt # For secure password hashing
+openpyxl # Required by pandas for .xlsx files
