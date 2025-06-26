@@ -2,6 +2,7 @@ import streamlit as st
 from auth import auth_page, check_authentication, show_auth_sidebar, get_current_user_name
 from tasks import tasks_page
 from reports import reports_page
+from attendance import attendance_page
 from database import init_db
 
 # Page configuration
@@ -92,16 +93,13 @@ def show_welcome_dashboard():
             st.metric("📝 Total Tasks", stats['total'])
         
         with col2:
-            st.metric("⏳ To Do", stats['to_do'])
+            st.metric("⏳ Pending", stats['pending'])
         
         with col3:
             st.metric("🔄 In Progress", stats['in_progress'])
         
         with col4:
-            st.metric("✅ Completed", stats['done'])
-        
-        if stats['overdue'] > 0:
-            st.warning(f"⚠️ You have {stats['overdue']} overdue task(s) that need attention!")
+            st.metric("✅ Completed", stats['completed'])
         
         # Quick action buttons
         st.subheader("🚀 Quick Actions")
@@ -136,7 +134,8 @@ def show_sidebar_navigation():
         # Navigation buttons
         pages = {
             "🏠 Dashboard": "Dashboard",
-            "📝 Tasks": "Tasks", 
+            "📝 Tasks": "Tasks",
+            "🕐 Attendance": "Attendance",
             "📊 Reports": "Reports"
         }
         
@@ -240,6 +239,9 @@ def main():
             
         elif current_page == "Tasks":
             tasks_page()
+            
+        elif current_page == "Attendance":
+            attendance_page()
             
         elif current_page == "Reports":
             reports_page()
