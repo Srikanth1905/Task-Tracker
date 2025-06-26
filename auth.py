@@ -1,21 +1,37 @@
 import streamlit as st
 import bcrypt
-import sqlite3
-from datetime import datetime
 from database import init_db, get_user_by_email, get_user_by_username, create_user
 
 def hash_password(password: str) -> str:
-    """Hash a password using bcrypt."""
+    """
+    The function `hash_password` hashes a given password using bcrypt with a randomly generated salt.
+    
+    :param password: The `hash_password` function takes a password as input, which is expected to be a
+    string. The function then hashes the password using bcrypt, a password-hashing function designed to
+    be slow and resistant to brute-force attacks. The hashed password is returned as a string
+    :type password: str
+    :return: The `hash_password` function returns the hashed password as a string.
+    """
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
     return hashed.decode('utf-8')
 
 def verify_password(password: str, hashed: str) -> bool:
-    """Verify a password against its hash."""
+    """
+    The function `verify_password` uses bcrypt to check if a given password matches a hashed password.
+    
+    :param password: The `password` parameter is a string representing the user's input password that
+    needs to be verified
+    :type password: str
+    :param hashed: The `hashed` parameter in the `verify_password` function is typically the hashed
+    version of the original password. It is the result of applying a cryptographic hash function to the
+    password. This hashed value is stored in a database or elsewhere for verification purposes
+    :type hashed: str
+    :return: a boolean value, indicating whether the provided password matches the hashed password.
+    """
     return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
 def register_user():
-    """Handle user registration."""
     st.subheader("🔐 Create New Account")
     
     with st.form("register_form"):
@@ -60,7 +76,9 @@ def register_user():
                 return False
 
 def login_user():
-    """Handle user login."""
+    """
+    The function `login_user` displays a subheader prompting the user to login to their account.
+    """
     st.subheader("🔑 Login to Your Account")
     
     with st.form("login_form"):
@@ -79,6 +97,7 @@ def login_user():
                 st.session_state.user_id = user[0]
                 st.session_state.user_name = user[1]
                 st.session_state.user_email = user[3]
+                
                 st.success(f"Welcome back, {user[1]}!")
                 st.rerun()
                 return True
