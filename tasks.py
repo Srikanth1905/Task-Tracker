@@ -16,7 +16,7 @@ def add_new_task():
             priority = st.selectbox("Priority", ["Low", "Medium", "High"])
             
         with col2:
-            due_date = st.date_input("Due Date", value=None)
+            task_date = st.date_input("Task Date", value=datetime.now().date())
             category = st.text_input("Category", value="General")
         
         description = st.text_area("Description")
@@ -28,9 +28,9 @@ def add_new_task():
                 return
                 
             user_id = get_current_user_id()
-            due_date_str = due_date.isoformat() if due_date else None
+            task_date_str = task_date.isoformat() if task_date else None
             
-            if create_task(user_id, title, description, due_date_str, priority, category):
+            if create_task(user_id, title, description, task_date_str, priority, category):
                 st.success("Task added successfully!")
                 st.rerun()
             else:
@@ -38,11 +38,11 @@ def add_new_task():
 
 def display_task_card(task):
     """Display a task in a card format."""
-    task_id, user_id, title, description, status, priority, category, due_date, created_at, completed_at = task
+    task_id, user_id, title, description, status, priority, category, task_date, created_at, completed_at = task
     
     # Color coding for priority and status
     priority_colors = {"Low": "🟢", "Medium": "🟡", "High": "🔴"}
-    status_colors = {"To Do": "⏳", "In Progress": "🔄", "Done": "✅"}
+    status_colors = {"Pending": "⏳", "In Progress": "🔄", "Completed": "✅"}
     
     with st.container():
         col1, col2, col3 = st.columns([3, 1, 1])
@@ -52,24 +52,25 @@ def display_task_card(task):
             if description:
                 st.caption(description)
             
-            # Show due date if exists
-            if due_date:
-                due_date_obj = datetime.fromisoformat(due_date).date()
-                if due_date_obj < date.today() and status != "Done":
-                    st.markdown(f"🚨 **Overdue:** {due_date}")
-                else:
-                    st.markdown(f"📅 Due: {due_date}")
+            # Show task date
+            if task_date:
+                st.markdown(f"📅 Date: {task_date}")
         
         with col2:
             st.markdown(f"{priority_colors.get(priority, '⚪')} {priority}")
             st.caption(f"📂 {category}")
+            # Show status with icon
+            st.markdown(f"{status_colors.get(status, '⚪')} {status}")
         
         with col3:
             # Status selector
+            status_options = ["Pending", "In Progress", "Completed"]
+            current_index = status_options.index(status) if status in status_options else 0
+            
             new_status = st.selectbox(
-                "Status", 
-                ["To Do", "In Progress", "Done"],
-                index=["To Do", "In Progress", "Done"].index(status),
+                "Change Status", 
+                status_options,
+                index=current_index,
                 key=f"status_{task_id}"
             )
             
@@ -103,7 +104,7 @@ def display_task_card(task):
 
 def edit_task_form(task):
     """Form to edit an existing task."""
-    task_id, user_id, title, description, status, priority, category, due_date, created_at, completed_at = task
+    task_id, user_id, title, description, status, priority, category, task_date, created_at, completed_at = task
     
     with st.form(f"edit_task_{task_id}"):
         st.subheader("Edit Task")
@@ -112,11 +113,11 @@ def edit_task_form(task):
         with col1:
             new_title = st.text_input("Title", value=title)
             new_priority = st.selectbox("Priority", ["Low", "Medium", "High"], 
-                                    index=["Low", "Medium", "High"].index(priority))
+                                      index=["Low", "Medium", "High"].index(priority))
         
         with col2:
-            current_due_date = datetime.fromisoformat(due_date).date() if due_date else None
-            new_due_date = st.date_input("Due Date", value=current_due_date)
+            current_task_date = datetime.fromisoformat(task_date).date() if task_date else None
+            new_task_date = st.date_input("Task Date", value=current_task_date)
             new_category = st.text_input("Category", value=category)
         
         new_description = st.text_area("Description", value=description or "")
@@ -128,9 +129,9 @@ def edit_task_form(task):
             cancel = st.form_submit_button("Cancel")
         
         if save:
-            new_due_date_str = new_due_date.isoformat() if new_due_date else None
-            if update_task(task_id, new_title, new_description, new_due_date_str, 
-                        new_priority, new_category):
+            new_task_date_str = new_task_date.isoformat() if new_task_date else None
+            if update_task(task_id, new_title, new_description, new_task_date_str, 
+                          new_priority, new_category):
                 st.success("Task updated successfully!")
                 st.session_state[f"editing_{task_id}"] = False
                 st.rerun()
@@ -148,7 +149,7 @@ def show_task_filters():
     with col1:
         status_filter = st.selectbox(
             "Filter by Status", 
-            ["All", "To Do", "In Progress", "Done"],
+            ["All", "Pending", "In Progress", "Completed"],
             key="status_filter"
         )
     
@@ -156,11 +157,11 @@ def show_task_filters():
         search_term = st.text_input("Search tasks", key="search_term")
     
     with col3:
-        show_overdue = st.checkbox("Show only overdue", key="show_overdue")
+        date_filter = st.date_input("Filter by Date", value=None, key="date_filter")
     
-    return status_filter, search_term, show_overdue
+    return status_filter, search_term, date_filter
 
-def filter_tasks(tasks, status_filter, search_term, show_overdue):
+def filter_tasks(tasks, status_filter, search_term, date_filter):
     """Filter tasks based on criteria."""
     filtered_tasks = tasks
     
@@ -173,15 +174,15 @@ def filter_tasks(tasks, status_filter, search_term, show_overdue):
         filtered_tasks = [
             task for task in filtered_tasks 
             if search_term.lower() in task[2].lower() or 
-            (task[3] and search_term.lower() in task[3].lower())
+               (task[3] and search_term.lower() in task[3].lower())
         ]
     
-    # Filter overdue tasks
-    if show_overdue:
-        today = date.today()
+    # Filter by date
+    if date_filter:
+        date_str = date_filter.isoformat()
         filtered_tasks = [
             task for task in filtered_tasks 
-            if task[7] and datetime.fromisoformat(task[7]).date() < today and task[4] != "Done"
+            if task[7] and task[7] == date_str
         ]
     
     return filtered_tasks
@@ -202,14 +203,11 @@ def tasks_page():
     with col1:
         st.metric("Total Tasks", stats['total'])
     with col2:
-        st.metric("To Do", stats['to_do'])
+        st.metric("⏳ Pending", stats['pending'])
     with col3:
-        st.metric("In Progress", stats['in_progress'])
+        st.metric("🔄 In Progress", stats['in_progress'])
     with col4:
-        st.metric("Completed", stats['done'])
-    
-    if stats['overdue'] > 0:
-        st.warning(f"⚠️ You have {stats['overdue']} overdue task(s)")
+        st.metric("✅ Completed", stats['completed'])
     
     st.divider()
     
@@ -220,11 +218,11 @@ def tasks_page():
     
     # Task filters
     st.subheader("📊 Your Tasks")
-    status_filter, search_term, show_overdue = show_task_filters()
+    status_filter, search_term, date_filter = show_task_filters()
     
     # Get and filter tasks
     all_tasks = get_user_tasks(user_id)
-    filtered_tasks = filter_tasks(all_tasks, status_filter, search_term, show_overdue)
+    filtered_tasks = filter_tasks(all_tasks, status_filter, search_term, date_filter)
     
     if not filtered_tasks:
         st.info("No tasks found matching your criteria.")
